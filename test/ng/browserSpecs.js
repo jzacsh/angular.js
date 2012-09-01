@@ -257,9 +257,9 @@ describe('browser', function() {
          *   For example:
          *     Total size of cookie when name='foo', value='bar' with path "/",
          *     is not simply 6 (length of 'foo' and 'bar' combined) but rather
-         *     8, because: "foo=bar; path=/;".length == 8
+         *     16, because: "foo=bar; path=/;".length == 16
          */
-        // Need to leave room for constant 11 characters
+        // Need to leave room for constant 11 characters ("x=; path=/;")
         for(i = 0; i < 4083; i++) {
           longVal4083 += '+';
         }
