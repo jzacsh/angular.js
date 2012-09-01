@@ -291,7 +291,7 @@ function Browser(window, document, $log, $sniffer) {
        * @return {string} All optional parameters, if defined in
        * [clientParams], with defaults filled in if necessary.
        */
-      var compileParams = function() {
+      var getCompiledParams = function() {
         var compiled = '';
         clientParams = clientParams || {};
 
@@ -318,8 +318,8 @@ function Browser(window, document, $log, $sniffer) {
       // - delete the cookie altogether, but only if we're sure it exists.
       if (value || (value === undefined && cookieNameExists)) {
         // Set the key/value of this request, along with the compiled params
-        var newCookieValue = getCookieString(escapedName, escapedValue) + compileParams();
-        cookieLength = (rawDocument.cookie = newCookieValue).length + 1;
+        var newCookieString = getCookieString(escapedName, escapedValue) + getCompiledParams();
+        cookieLength = (rawDocument.cookie = newCookieString).length + 1;
 
         // Check if we might've gone over any size limitations.
         if (isString(value)) {
