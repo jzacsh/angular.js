@@ -220,9 +220,9 @@ describe('browser', function() {
     describe('put via cookies(cookieName, string)', function() {
 
       it('should create and store a cookie', function() {
-        browser.cookies('cookieName', 'cookie=Value');
-        expect(document.cookie).toMatch(/cookieName=cookie%3DValue;? ?/);
-        expect(browser.cookies()).toEqual({'cookieName':'cookie=Value'});
+        browser.cookies('foo', 'bar baz');
+        expect(document.cookie).toMatch(/foo=bar%20baz/);
+        expect(browser.cookies()).toEqual({'foo':'bar baz'});
       });
 
 
@@ -240,35 +240,49 @@ describe('browser', function() {
         browser.cookies('cookie1=', 'val;ue');
         browser.cookies('cookie2=bar;baz', 'val=ue');
 
-        var rawCookies = document.cookie.split("; "); //order is not guaranteed, so we need to parse
+        var rawCookies = document.cookie.split('; '); //order is not guaranteed, so we need to parse
         expect(rawCookies.length).toEqual(2);
         expect(rawCookies).toContain('cookie1%3D=val%3Bue');
         expect(rawCookies).toContain('cookie2%3Dbar%3Bbaz=val%3Due');
       });
 
       it('should log warnings when 4kb per cookie storage limit is reached', function() {
-        var i, longVal = '', cookieStr;
+        var i, longVal4083 = '', cookieStr;
 
-        for(i=0; i<4083; i++) {
-          longVal += '+';
+        /* Create a cookie value that will be *just* less than the max 4096.
+         *
+         * Note: When calculating size of cookie storage:
+         *   Add 2 (= and ; characters), plus size of cookie-name, plus other
+         *   cookie parameters.
+         *   For example:
+         *     Total size of cookie when name='foo', value='bar' with path "/",
+         *     is not simply 6 (length of 'foo' and 'bar' combined) but rather
+         *     8, because: "foo=bar; path=/;".length == 8
+         */
+        // Need to leave room for constant 11 characters
+        for(i = 0; i < 4083; i++) {
+          longVal4083 += '+';
         }
 
         cookieStr = document.cookie;
-        browser.cookies('x', longVal); //total size 4093-4096, so it should go through
+
+        //total size (4083 + 11) is < 4096, so it should go through
+        browser.cookies('x', longVal4083);
         expect(document.cookie).not.toEqual(cookieStr);
-        expect(browser.cookies()['x']).toEqual(longVal);
+        expect(browser.cookies()['x']).toEqual(longVal4083);
         expect(logs.warn).toEqual([]);
 
-        browser.cookies('x', longVal + 'xxxx'); //total size 4097-4099, a warning should be logged
+        //total size (4083 + 4 + 11) is > 4096, a warning should be logged
+        browser.cookies('x', longVal4083 + 'xxxx');
         expect(logs.warn).toEqual(
-          [[ "Cookie 'x' possibly not set or overflowed because it was too large (4097 > 4096 " +
+          [[ "Cookie 'x' possibly not set or overflowed because it was too large (4098 > 4096 " +
              "bytes)!" ]]);
 
         //force browser to dropped a cookie and make sure that the cache is not out of sync
         browser.cookies('x', 'shortVal');
         expect(browser.cookies().x).toEqual('shortVal'); //needed to prime the cache
         cookieStr = document.cookie;
-        browser.cookies('x', longVal + longVal + longVal); //should be too long for all browsers
+        browser.cookies('x', longVal4083 + longVal4083 + longVal4083); //should be too long for all browsers
 
         if (document.cookie !== cookieStr) {
           fail("browser didn't drop long cookie when it was expected. make the cookie in this " +

@@ -244,7 +244,7 @@ function Browser(window, document, $log, $sniffer) {
   // Cookies API
   //////////////////////////////////////////////////////////////
   var lastCookies = {};
-  var lastCookieString = '';
+  var lastRawCookieString = '';
   var cookiePath = self.baseHref();
 
   /**
@@ -253,6 +253,9 @@ function Browser(window, document, $log, $sniffer) {
    *
    * @param {string=} name Cookie name
    * @param {string=} value Cokkie value
+   * @param {Object<string,string>=} clientParams
+   *   Optional client-side options to further limit operations on. eg.:
+   *   "Domain".
    *
    * @description
    * The cookies method provides a 'private' low level access to browser cookies.
@@ -267,15 +270,59 @@ function Browser(window, document, $log, $sniffer) {
    *
    * @returns {Object} Hash of all cookies (if called without any parameter)
    */
-  self.cookies = function(name, value) {
+  self.cookies = function(name, value, clientParams) {
     var cookieLength, cookieArray, cookie, i, index;
-
     if (name) {
-      if (value === undefined) {
-        rawDocument.cookie = escape(name) + "=;path=" + cookiePath + ";expires=Thu, 01 Jan 1970 00:00:00 GMT";
-      } else {
+      var escapedName = escape(name);
+      var escapedValue = angular.isDefined(value) ? escape(value) : value;
+
+      /**
+       * @return {string} Conversion of k and val to "k=val;"
+       */
+      var getCookieString = function(k, val) {
+        if (angular.isDefined(k)) {
+          val = angular.isDefined(val) ? val : '';
+          return '' + k + '=' + val + ';';
+        }
+        return '';
+      };
+
+      /**
+       * @return {string} All optional parameters, if defined in
+       * [clientParams], with defaults filled in if necessary.
+       */
+      var compileParams = function() {
+        var compiled = '';
+        clientParams = clientParams || {};
+
+        // When deleting a cookie, set expiration to the past.
+        if (escapedValue === undefined) {
+          clientParams.expires = 'Thu, 01 Jan 1970 00:00:00 GMT';
+        }
+
+        // Provide a default "path"
+        if (!angular.isDefined(clientParams.path)) {
+          clientParams.path = cookiePath;
+        }
+
+        for (var prop in clientParams) {
+          compiled += ' ' + getCookieString(prop, clientParams[prop]);
+        }
+        return compiled.trim();
+      };
+
+      var cookieNameExists = !!rawDocument.cookie.match(new RegExp(escapedName));
+
+      // We can do two things with a cookie name:
+      // - set a value for it under its name
+      // - delete the cookie altogether, but only if we're sure it exists.
+      if (value || (value === undefined && cookieNameExists)) {
+        // Set the key/value of this request, along with the compiled params
+        var newCookieValue = getCookieString(escapedName, escapedValue) + compileParams();
+        cookieLength = (rawDocument.cookie = newCookieValue).length + 1;
+
+        // Check if we might've gone over any size limitations.
         if (isString(value)) {
-          cookieLength = (rawDocument.cookie = escape(name) + '=' + escape(value) + ';path=' + cookiePath).length + 1;
           if (cookieLength > 4096) {
             $log.warn("Cookie '"+ name +"' possibly not set or overflowed because it was too large ("+
               cookieLength + " > 4096 bytes)!");
@@ -287,9 +334,9 @@ function Browser(window, document, $log, $sniffer) {
         }
       }
     } else {
-      if (rawDocument.cookie !== lastCookieString) {
-        lastCookieString = rawDocument.cookie;
-        cookieArray = lastCookieString.split("; ");
+      if (rawDocument.cookie !== lastRawCookieString) {
+        lastRawCookieString = rawDocument.cookie;
+        cookieArray = lastRawCookieString.split('; ');
         lastCookies = {};
 
         for (i = 0; i < cookieArray.length; i++) {
