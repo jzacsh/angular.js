@@ -216,7 +216,6 @@ describe('browser', function() {
       });
     });
 
-
     describe('put via cookies(cookieName, string)', function() {
 
       it('should create and store a cookie', function() {
@@ -224,7 +223,6 @@ describe('browser', function() {
         expect(document.cookie).toMatch(/foo=bar%20baz/);
         expect(browser.cookies()).toEqual({'foo':'bar baz'});
       });
-
 
       it('should overwrite an existing unsynced cookie', function() {
         document.cookie = "cookie=new;path=/";
@@ -246,7 +244,7 @@ describe('browser', function() {
         expect(rawCookies).toContain('cookie2%3Dbar%3Bbaz=val%3Due');
       });
 
-      it('should log warnings when 4kb per cookie storage limit is reached', function() {
+      it("should log warnings when RFC-2965's 4kb-per-cookie storage limit is reached", function() {
         var i, longVal4083 = '', cookieStr;
 
         /* Create a cookie value that will be *just* less than the max 4096.
@@ -257,23 +255,23 @@ describe('browser', function() {
          *   For example:
          *     Total size of cookie when name='foo', value='bar' with path "/",
          *     is not simply 6 (length of 'foo' and 'bar' combined) but rather
-         *     16, because: "foo=bar; path=/;".length == 16
+         *     15, because: "foo=bar; path=/".length == 15
          */
-        // Need to leave room for constant 11 characters ("x=; path=/;")
+        // Need to leave room for constant 10 characters ("x=; path=/")
         for(i = 0; i < 4083; i++) {
           longVal4083 += '+';
         }
 
         cookieStr = document.cookie;
 
-        //total size (4083 + 11) is < 4096, so it should go through
+        //total size (4083 + 10) is < 4096, so it should go through
         browser.cookies('x', longVal4083);
         expect(document.cookie).not.toEqual(cookieStr);
         expect(browser.cookies()['x']).toEqual(longVal4083);
         expect(logs.warn).toEqual([]);
 
-        //total size (4083 + 4 + 11) is > 4096, a warning should be logged
-        browser.cookies('x', longVal4083 + 'xxxx');
+        //total size (4083 + 10 + 5) is > 4096, a warning should be logged
+        browser.cookies('x', longVal4083 + 'xxxxx');
         expect(logs.warn).toEqual(
           [[ "Cookie 'x' possibly not set or overflowed because it was too large (4098 > 4096 " +
              "bytes)!" ]]);
@@ -319,7 +317,6 @@ describe('browser', function() {
         }
       });
     });
-
 
     describe('get via cookies()[cookieName]', function() {
 

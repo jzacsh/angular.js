@@ -308,7 +308,12 @@ function Browser(window, document, $log, $sniffer) {
         for (var prop in clientParams) {
           compiled += ' ' + getCookieString(prop, clientParams[prop]);
         }
-        return compiled.trim();
+
+        return compiled
+            // Remove excess padding
+            .trim()
+            // Remove the final, unnecessary delimeter
+            .replace(/;$/, '');
       };
 
       var cookieNameExists = !!rawDocument.cookie.match(new RegExp(escapedName));
@@ -316,12 +321,13 @@ function Browser(window, document, $log, $sniffer) {
       // We can do two things with a cookie name:
       // - set a value for it under its name
       // - delete the cookie altogether, but only if we're sure it exists.
-      if (value || (value === undefined && cookieNameExists)) {
+      if (value || (!angular.isDefined(value) && cookieNameExists)) {
         // Set the key/value of this request, along with the compiled params
-        var newCookieString = getCookieString(escapedName, escapedValue) + getCompiledParams();
-        cookieLength = (rawDocument.cookie = newCookieString).length + 1;
+        var newCookieString = getCookieString(escapedName, escapedValue) +
+            ' ' + getCompiledParams();
+        cookieLength = (rawDocument.cookie = newCookieString).length;
 
-        // Check if we might've gone over any size limitations.
+        // Check if we might've gone over any size limitations, per RFC 2965
         if (isString(value)) {
           if (cookieLength > 4096) {
             $log.warn("Cookie '"+ name +"' possibly not set or overflowed because it was too large ("+
