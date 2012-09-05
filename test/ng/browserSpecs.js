@@ -3,6 +3,7 @@
 function MockWindow() {
   var events = {};
   var timeouts = this.timeouts = [];
+  var self = this;
 
   this.setTimeout = function(fn) {
     return timeouts.push(fn) - 1;
@@ -42,7 +43,11 @@ function MockWindow() {
 
   this.history = {
     replaceState: noop,
-    pushState: noop
+    pushState: function(state, title, url) {
+      // pushState only needed for simple browser.url() call, ignore other
+      // functionlity.
+      self.location.href = url;
+    }
   };
 }
 
@@ -315,6 +320,41 @@ describe('browser', function() {
         } else {
           expect(size(browser.cookies())).toEqual(21);
         }
+      });
+    });
+
+    describe('put via cookies(cookieName, string, clientParams)', function() {
+      it('should create and store a cookie with expiration tomorrow', function() {
+        var tomorrow = (function() {
+          var date = new Date();
+          var ONE_DAY = 86400000;
+          date.setTime(date.getTime() + (1 * ONE_DAY));
+          return date.toGMTString();
+        })();
+
+        browser.cookies('foo', 'bar baz', { expires: tomorrow });
+        expect(document.cookie).toMatch(/foo=bar%20baz/);
+        expect(browser.cookies()).toEqual({'foo':'bar baz'});
+      });
+
+      it('should create and store a cookie on a different path', function() {
+        browser.url('http://server/another_page/deeper');
+        expect(browser.url()).toBe('http://server/another_page/deeper');
+
+        browser.cookies('foo', 'right here');
+        expect(browser.cookies().foo).toEqual('right here');
+
+        browser.cookies('foo', 'up there', { path: '/another_page' });
+        expect(browser.cookies().foo).toEqual('right here');
+
+        /*
+        // TODO(zacsh) the below fails, because browser.cookies is fetching the
+        // from /another_page/deeper
+
+        browser.url('http://server/another_page');
+        expect(browser.url()).toBe('http://server/another_page');
+        expect(browser.cookies().foo).toEqual('up there');
+        */
       });
     });
 
